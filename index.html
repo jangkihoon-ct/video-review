@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Review</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#111;color:#ddd;min-height:100vh}
+.app{max-width:800px;margin:0 auto;padding:20px 16px}
+
+/* Source */
+.source{margin-bottom:16px}
+.source-row{display:flex;gap:8px}
+.source-row input{flex:1;padding:10px 14px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#ddd;font-size:14px;outline:none;font-family:inherit}
+.source-row input:focus{border-color:#7c6df7}
+.source-row input::placeholder{color:#555}
+.source-row button{padding:10px 18px;background:#7c6df7;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.source-row button:hover{background:#6c5ce7}
+.or-local{text-align:center;margin-top:10px;font-size:12px;color:#555}
+.or-local span{cursor:pointer;color:#7c6df7;text-decoration:underline}
+
+/* Player */
+.player{display:none;margin-bottom:16px;background:#000;border-radius:10px;overflow:hidden}
+.player video{width:100%;display:block;max-height:440px}
+.player iframe{width:100%;height:440px;border:none}
+
+/* Add bar */
+.add-bar{display:none;margin-bottom:20px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:14px 16px}
+.add-row{display:flex;gap:8px;align-items:center}
+.add-row:first-child{margin-bottom:10px}
+
+/* Timestamp input - editable */
+.ts-group{display:flex;align-items:center;gap:4px;background:#222;border:1px solid #333;border-radius:6px;padding:4px 8px}
+.ts-group:focus-within{border-color:#7c6df7}
+.ts-label{font-size:11px;color:#888;white-space:nowrap}
+.ts-input{width:50px;background:none;border:none;color:#7c6df7;font-size:15px;font-weight:700;font-family:'SF Mono','Fira Code',monospace;outline:none;text-align:center}
+.ts-input::placeholder{color:#444}
+
+.fb-field{flex:1;padding:8px 12px;background:#222;border:1px solid #333;border-radius:6px;color:#ddd;font-size:14px;outline:none;font-family:inherit}
+.fb-field:focus{border-color:#7c6df7}
+
+.author-field{width:80px;padding:8px 10px;background:#222;border:1px solid #333;border-radius:6px;color:#ddd;font-size:13px;outline:none;font-family:inherit}
+.author-field:focus{border-color:#7c6df7}
+
+.btn-add{padding:8px 16px;background:#7c6df7;border:none;border-radius:6px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn-add:hover{background:#6c5ce7}
+
+/* Capture button - for local video only */
+.btn-capture{padding:6px 12px;background:#333;border:none;border-radius:6px;color:#ddd;font-size:12px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:5px}
+.btn-capture:hover{background:#444}
+.btn-capture .dot{width:7px;height:7px;background:#ff4757;border-radius:50%;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* List */
+.fb-list{display:none}
+.fb-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.fb-header h3{font-size:14px;font-weight:600;color:#888}
+.fb-header h3 b{color:#ddd;margin-left:4px}
+.fb-actions button{padding:5px 12px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;color:#aaa;font-size:12px;cursor:pointer;font-family:inherit;margin-left:6px}
+.fb-actions button:hover{border-color:#7c6df7;color:#ddd}
+.fb-actions .primary{background:#7c6df7;border-color:#7c6df7;color:#fff}
+.fb-actions .primary:hover{background:#6c5ce7}
+
+.fb-item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #1e1e1e;align-items:flex-start}
+.fb-item:last-child{border-bottom:none}
+.fb-ts{font-family:'SF Mono','Fira Code',monospace;font-size:13px;font-weight:700;color:#7c6df7;cursor:pointer;padding:3px 8px;background:rgba(124,109,247,0.1);border-radius:5px;white-space:nowrap;border:none;transition:all 0.15s}
+.fb-ts:hover{background:#7c6df7;color:#fff}
+.fb-body{flex:1;min-width:0}
+.fb-text{font-size:14px;line-height:1.5;word-break:break-word}
+.fb-meta{font-size:11px;color:#555;margin-top:3px;display:flex;gap:8px;align-items:center}
+.fb-author{color:#888}
+.fb-status{padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;cursor:pointer;border:none;font-family:inherit}
+.fb-status.s0{background:rgba(255,71,87,0.15);color:#ff4757}
+.fb-status.s1{background:rgba(255,165,2,0.15);color:#ffa502}
+.fb-status.s2{background:rgba(46,213,115,0.15);color:#2ed573}
+.fb-del{background:none;border:none;color:#444;cursor:pointer;font-size:16px;padding:4px 8px;border-radius:4px;align-self:center}
+.fb-del:hover{color:#ff4757;background:rgba(255,71,87,0.1)}
+
+.empty{text-align:center;padding:32px 0;color:#444;font-size:13px}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#222;border:1px solid #333;color:#ddd;padding:10px 20px;border-radius:8px;font-size:13px;z-index:99;transition:transform 0.25s ease;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* Modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:50;justify-content:center;align-items:center}
+.modal-bg.open{display:flex}
+.modal{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:24px;max-width:560px;width:90%;max-height:80vh;overflow:auto}
+.modal h3{font-size:16px;margin-bottom:4px}
+.modal p{font-size:13px;color:#888;margin-bottom:16px}
+.modal pre{background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:14px;font-size:12px;line-height:1.6;color:#ccc;white-space:pre-wrap;word-break:break-word;max-height:340px;overflow:auto;font-family:'SF Mono','Fira Code',monospace}
+.modal-btns{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.modal-btns button{padding:8px 18px;border-radius:8px;border:none;font-size:13px;cursor:pointer;font-family:inherit}
+.modal-btns .copy-btn{background:#7c6df7;color:#fff;font-weight:600}
+.modal-btns .copy-btn:hover{background:#6c5ce7}
+.modal-btns .close-btn{background:#333;color:#ddd}
+.modal-btns .close-btn:hover{background:#444}
+.format-tabs{display:flex;gap:4px;margin-bottom:12px}
+.format-tab{padding:5px 12px;border-radius:6px;border:1px solid #333;background:transparent;color:#888;font-size:12px;cursor:pointer;font-family:inherit}
+.format-tab.active{background:#333;color:#ddd;border-color:#444}
+
+.mode-hint{font-size:11px;color:#666;text-align:center;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Source -->
+  <div class="source" id="sourceArea">
+    <div class="source-row">
+      <input type="text" id="driveInput" placeholder="Google Drive 공유 링크 붙여넣기" onkeydown="if(event.key==='Enter')openVideo()">
+      <button onclick="openVideo()">열기</button>
+    </div>
+    <div class="or-local">또는 <span onclick="document.getElementById('fileInput').click()">로컬 파일 선택</span></div>
+    <input type="file" id="fileInput" accept="video/*" hidden>
+  </div>
+
+  <!-- Player -->
+  <div class="player" id="player"></div>
+
+  <!-- Add bar -->
+  <div class="add-bar" id="addBar">
+    <div class="add-row">
+      <div class="ts-group">
+        <span class="ts-label">시점</span>
+        <input class="ts-input" id="tsInput" placeholder="0:00" value="0:00">
+      </div>
+      <button class="btn-capture" id="captureBtn" onclick="captureNow()" style="display:none">
+        <span class="dot"></span>지금
+      </button>
+      <input class="fb-field" id="fbText" placeholder="피드백 입력 후 Enter" onkeydown="if(event.key==='Enter')addItem()">
+    </div>
+    <div class="add-row">
+      <input class="author-field" id="authorField" placeholder="이름">
+      <button class="btn-add" onclick="addItem()">추가</button>
+    </div>
+    <div class="mode-hint" id="modeHint"></div>
+  </div>
+
+  <!-- List -->
+  <div class="fb-list" id="fbList">
+    <div class="fb-header">
+      <h3>피드백<b id="fbCount">0</b></h3>
+      <div class="fb-actions">
+        <button onclick="resetAll()">초기화</button>
+        <button class="primary" onclick="showExport()">노션에 정리</button>
+      </div>
+    </div>
+    <div id="fbItems"></div>
+  </div>
+</div>
+
+<!-- Export modal -->
+<div class="modal-bg" id="exportModal" onclick="if(event.target===this)hideExport()">
+  <div class="modal">
+    <h3>노션에 정리하기</h3>
+    <p>복사해서 노션에 붙여넣으세요</p>
+    <div class="format-tabs">
+      <button class="format-tab active" onclick="setFmt('table',this)">표</button>
+      <button class="format-tab" onclick="setFmt('list',this)">리스트</button>
+      <button class="format-tab" onclick="setFmt('check',this)">체크리스트</button>
+    </div>
+    <pre id="exportText"></pre>
+    <div class="modal-btns">
+      <button class="close-btn" onclick="hideExport()">닫기</button>
+      <button class="copy-btn" onclick="copyExport()">복사하기</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ---- State ----
+var data = [];       // feedback items
+var driveId = null;  // current drive file id
+var videoMode = '';  // 'local' | 'drive-iframe'
+var exportFmt = 'table';
+
+// ---- Storage ----
+function saveData() {
+  try {
+    localStorage.setItem('vr2_data', JSON.stringify(data));
+    localStorage.setItem('vr2_author', document.getElementById('authorField').value);
+    if (driveId) localStorage.setItem('vr2_drive', driveId);
+  } catch(e) {}
+}
+
+function loadData() {
+  try {
+    var s = localStorage.getItem('vr2_data');
+    if (s) data = JSON.parse(s);
+    var a = localStorage.getItem('vr2_author');
+    if (a) document.getElementById('authorField').value = a;
+  } catch(e) { data = []; }
+}
+
+// ---- Time helpers ----
+function fmtTime(sec) {
+  if (isNaN(sec) || sec < 0) sec = 0;
+  var m = Math.floor(sec / 60);
+  var s = Math.floor(sec % 60);
+  return m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+function parseTime(str) {
+  str = (str || '').trim().replace(/\s/g, '');
+  var parts = str.split(':');
+  if (parts.length === 3) return (+parts[0])*3600 + (+parts[1])*60 + (+parts[2]);
+  if (parts.length === 2) return (+parts[0])*60 + (+parts[1]);
+  return +parts[0] || 0;
+}
+
+// ---- Google Drive ----
+function extractDriveId(url) {
+  url = (url || '').trim();
+  var m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(url)) return url;
+  return null;
+}
+
+// ---- Open video ----
+function openVideo() {
+  var input = document.getElementById('driveInput').value;
+  var id = extractDriveId(input);
+  if (!id) { showToast('올바른 Google Drive 링크를 입력해주세요'); return; }
+
+  driveId = id;
+  videoMode = 'drive-iframe';
+
+  var player = document.getElementById('player');
+  player.innerHTML = '<iframe src="https://drive.google.com/file/d/' + id + '/preview" allow="autoplay;encrypted-media" allowfullscreen></iframe>';
+  player.style.display = 'block';
+
+  document.getElementById('captureBtn').style.display = 'none';
+  document.getElementById('modeHint').textContent = '영상에서 시점을 확인하고 위에 직접 입력하세요 (예: 1:23)';
+
+  activateUI();
+  saveData();
+}
+
+function openLocalFile(file) {
+  videoMode = 'local';
+  driveId = null;
+
+  var player = document.getElementById('player');
+  player.innerHTML = '<video id="localVid" controls src="' + URL.createObjectURL(file) + '"></video>';
+  player.style.display = 'block';
+
+  document.getElementById('captureBtn').style.display = 'flex';
+  document.getElementById('modeHint').textContent = '"지금" 버튼을 누르면 현재 시점이 자동 입력됩니다';
+
+  activateUI();
+}
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  if (e.target.files[0]) openLocalFile(e.target.files[0]);
+});
+
+function activateUI() {
+  document.getElementById('sourceArea').style.display = 'none';
+  document.getElementById('addBar').style.display = 'block';
+  document.getElementById('fbList').style.display = 'block';
+  renderList();
+}
+
+// ---- Capture (local video only) ----
+function captureNow() {
+  var vid = document.getElementById('localVid');
+  if (!vid) return;
+  vid.pause();
+  document.getElementById('tsInput').value = fmtTime(vid.currentTime);
+  document.getElementById('fbText').focus();
+}
+
+// Auto-pause when clicking feedback input (local only)
+document.getElementById('fbText').addEventListener('focus', function() {
+  if (videoMode !== 'local') return;
+  var vid = document.getElementById('localVid');
+  if (vid && !vid.paused) {
+    vid.pause();
+    document.getElementById('tsInput').value = fmtTime(vid.currentTime);
+  }
+});
+
+// ---- Add feedback ----
+function addItem() {
+  var text = document.getElementById('fbText').value.trim();
+  var author = document.getElementById('authorField').value.trim();
+  var timeStr = document.getElementById('tsInput').value.trim();
+
+  if (!text) { showToast('피드백을 입력해주세요'); return; }
+  if (!author) { document.getElementById('authorField').focus(); showToast('이름을 입력해주세요'); return; }
+
+  var timeSec = parseTime(timeStr);
+
+  data.push({
+    id: Date.now().toString(36) + Math.random().toString(36).substr(2,3),
+    time: timeSec,
+    text: text,
+    author: author,
+    status: 0,
+    ts: new Date().toISOString()
+  });
+
+  data.sort(function(a, b) { return a.time - b.time; });
+  saveData();
+  document.getElementById('fbText').value = '';
+  renderList();
+  showToast(fmtTime(timeSec) + ' 피드백 추가됨');
+}
+
+// ---- Render ----
+var STATUS_NAMES = ['미확인', '확인', '반영완료'];
+var STATUS_CLS = ['s0', 's1', 's2'];
+
+function renderList() {
+  document.getElementById('fbCount').textContent = data.length;
+  var c = document.getElementById('fbItems');
+
+  if (data.length === 0) {
+    c.innerHTML = '<div class="empty">피드백이 없습니다</div>';
+    return;
+  }
+
+  var html = '';
+  for (var i = 0; i < data.length; i++) {
+    var f = data[i];
+    html += '<div class="fb-item" data-id="' + f.id + '">'
+      + '<button class="fb-ts" onclick="jumpTo(' + f.time + ')">' + fmtTime(f.time) + '</button>'
+      + '<div class="fb-body">'
+      + '<div class="fb-text">' + escHtml(f.text) + '</div>'
+      + '<div class="fb-meta">'
+      + '<span class="fb-author">' + escHtml(f.author) + '</span>'
+      + '<button class="fb-status ' + STATUS_CLS[f.status] + '" onclick="toggleStatus(\'' + f.id + '\')">' + STATUS_NAMES[f.status] + '</button>'
+      + '</div></div>'
+      + '<button class="fb-del" onclick="removeItem(\'' + f.id + '\')">&times;</button>'
+      + '</div>';
+  }
+  c.innerHTML = html;
+}
+
+function escHtml(s) {
+  var d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ---- Jump to time ----
+function jumpTo(sec) {
+  if (videoMode === 'local') {
+    var vid = document.getElementById('localVid');
+    if (vid) {
+      vid.currentTime = sec;
+      vid.play();
+      vid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  } else {
+    // iframe: can't seek programmatically, show hint
+    showToast(fmtTime(sec) + ' 시점으로 이동해주세요');
+    document.getElementById('player').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+// ---- Status toggle ----
+function toggleStatus(id) {
+  for (var i = 0; i < data.length; i++) {
+    if (data[i].id === id) {
+      data[i].status = (data[i].status + 1) % 3;
+      break;
+    }
+  }
+  saveData();
+  renderList();
+}
+
+// ---- Remove item ----
+function removeItem(id) {
+  data = data.filter(function(f) { return f.id !== id; });
+  saveData();
+  renderList();
+}
+
+// ---- Reset ----
+function resetAll() {
+  if (!window.confirm('모든 피드백을 삭제할까요?')) return;
+  data = [];
+  saveData();
+  renderList();
+  showToast('초기화 완료');
+}
+
+// ---- Export ----
+function showExport() {
+  if (data.length === 0) { showToast('내보낼 피드백이 없습니다'); return; }
+  document.getElementById('exportModal').classList.add('open');
+  buildExport();
+}
+function hideExport() {
+  document.getElementById('exportModal').classList.remove('open');
+}
+function setFmt(f, btn) {
+  exportFmt = f;
+  var tabs = document.querySelectorAll('.format-tab');
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+  btn.classList.add('active');
+  buildExport();
+}
+function buildExport() {
+  var el = document.getElementById('exportText');
+  var header = driveId ? '영상: https://drive.google.com/file/d/' + driveId + '/view\n\n' : '';
+
+  if (exportFmt === 'table') {
+    var rows = '';
+    for (var i = 0; i < data.length; i++) {
+      var f = data[i];
+      rows += '| ' + fmtTime(f.time) + ' | ' + f.text + ' | ' + f.author + ' | ' + STATUS_NAMES[f.status] + ' |\n';
+    }
+    el.textContent = header + '| 시점 | 피드백 | 작성자 | 상태 |\n| --- | --- | --- | --- |\n' + rows;
+  } else if (exportFmt === 'list') {
+    var lines = '';
+    for (var i = 0; i < data.length; i++) {
+      var f = data[i];
+      lines += '- **' + fmtTime(f.time) + '** ' + f.text + ' (' + f.author + ') [' + STATUS_NAMES[f.status] + ']\n';
+    }
+    el.textContent = header + lines;
+  } else {
+    var lines = '';
+    for (var i = 0; i < data.length; i++) {
+      var f = data[i];
+      lines += '- [ ] **' + fmtTime(f.time) + '** ' + f.text + ' \u2014 ' + f.author + '\n';
+    }
+    el.textContent = header + lines;
+  }
+}
+function copyExport() {
+  var text = document.getElementById('exportText').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    showToast('복사 완료! 노션에 붙여넣기 하세요');
+    hideExport();
+  });
+}
+
+// ---- Toast ----
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(function() { t.classList.remove('show'); }, 2200);
+}
+
+// ---- Keyboard shortcuts (local video only) ----
+document.addEventListener('keydown', function(e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (videoMode !== 'local') return;
+  var vid = document.getElementById('localVid');
+  if (!vid) return;
+  if (e.key === ' ') { e.preventDefault(); vid.paused ? vid.play() : vid.pause(); }
+  if (e.key === 'ArrowLeft') vid.currentTime = Math.max(0, vid.currentTime - 5);
+  if (e.key === 'ArrowRight') vid.currentTime += 5;
+  if (e.key === 'f' || e.key === 'F') { e.preventDefault(); captureNow(); }
+});
+
+// ---- Init ----
+loadData();
+
+// Auto-load saved drive link
+var urlParams = new URLSearchParams(window.location.search);
+var urlDrive = urlParams.get('drive');
+if (urlDrive) {
+  document.getElementById('driveInput').value = urlDrive;
+  openVideo();
+} else {
+  var savedDrive = null;
+  try { savedDrive = localStorage.getItem('vr2_drive'); } catch(e) {}
+  if (savedDrive) {
+    driveId = savedDrive;
+    document.getElementById('driveInput').value = 'https://drive.google.com/file/d/' + savedDrive + '/view';
+    openVideo();
+  } else {
+    renderList();
+  }
+}
+</script>
+</body>
+</html>

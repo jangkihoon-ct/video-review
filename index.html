@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Review</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#111;color:#ddd;min-height:100vh}
+
+.app{max-width:800px;margin:0 auto;padding:20px 16px}
+
+/* Source input */
+.source{margin-bottom:16px}
+.source-row{display:flex;gap:8px}
+.source-row input{flex:1;padding:10px 14px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#ddd;font-size:14px;outline:none;font-family:inherit}
+.source-row input:focus{border-color:#7c6df7}
+.source-row input::placeholder{color:#555}
+.source-row button{padding:10px 18px;background:#7c6df7;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.source-row button:hover{background:#6c5ce7}
+.or-local{text-align:center;margin-top:10px;font-size:12px;color:#555}
+.or-local span{cursor:pointer;color:#7c6df7;text-decoration:underline}
+
+/* Video */
+.player{display:none;margin-bottom:16px;background:#000;border-radius:10px;overflow:hidden;position:relative}
+.player video{width:100%;display:block;max-height:440px}
+.player iframe{width:100%;height:440px;border:none}
+.player-info{position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.7);padding:4px 10px;border-radius:6px;font-size:11px;color:#aaa}
+
+/* Add feedback bar */
+.add-bar{display:none;margin-bottom:20px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:14px 16px}
+.add-top{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+.ts-btn{padding:6px 14px;background:#7c6df7;border:none;border-radius:6px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:'SF Mono',monospace;letter-spacing:0.5px;display:flex;align-items:center;gap:6px}
+.ts-btn:hover{background:#6c5ce7}
+.ts-btn .capture-dot{width:8px;height:8px;background:#ff4757;border-radius:50%;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.add-input{flex:1;padding:8px 12px;background:#222;border:1px solid #333;border-radius:6px;color:#ddd;font-size:14px;outline:none;font-family:inherit}
+.add-input:focus{border-color:#7c6df7}
+.add-bottom{display:flex;gap:8px;align-items:center}
+.add-author{width:80px;padding:7px 10px;background:#222;border:1px solid #333;border-radius:6px;color:#ddd;font-size:13px;outline:none;font-family:inherit}
+.add-author:focus{border-color:#7c6df7}
+.add-submit{margin-left:auto;padding:7px 16px;background:#333;border:none;border-radius:6px;color:#ddd;font-size:13px;cursor:pointer;font-family:inherit}
+.add-submit:hover{background:#444}
+
+/* Feedback list */
+.fb-list{display:none}
+.fb-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.fb-header h3{font-size:14px;font-weight:600;color:#888}
+.fb-header h3 b{color:#ddd;margin-left:4px}
+.fb-actions{display:flex;gap:6px}
+.fb-actions button{padding:5px 12px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;color:#aaa;font-size:12px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px}
+.fb-actions button:hover{border-color:#7c6df7;color:#ddd}
+.fb-actions button.primary{background:#7c6df7;border-color:#7c6df7;color:#fff}
+.fb-actions button.primary:hover{background:#6c5ce7}
+
+/* Feedback item */
+.fb-item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #1e1e1e;align-items:flex-start}
+.fb-item:last-child{border-bottom:none}
+.fb-ts{font-family:'SF Mono','Fira Code',monospace;font-size:13px;font-weight:700;color:#7c6df7;cursor:pointer;padding:3px 8px;background:rgba(124,109,247,0.1);border-radius:5px;white-space:nowrap;border:none;transition:all 0.15s}
+.fb-ts:hover{background:#7c6df7;color:#fff}
+.fb-body{flex:1;min-width:0}
+.fb-text{font-size:14px;line-height:1.5;word-break:break-word}
+.fb-meta{font-size:11px;color:#555;margin-top:3px;display:flex;gap:8px;align-items:center}
+.fb-author{color:#888}
+.fb-status{padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;cursor:pointer;border:none;font-family:inherit}
+.fb-status.s0{background:rgba(255,71,87,0.15);color:#ff4757}
+.fb-status.s1{background:rgba(255,165,2,0.15);color:#ffa502}
+.fb-status.s2{background:rgba(46,213,115,0.15);color:#2ed573}
+.fb-del{background:none;border:none;color:#333;cursor:pointer;font-size:16px;padding:4px;border-radius:4px;align-self:center}
+.fb-del:hover{color:#ff4757;background:rgba(255,71,87,0.1)}
+
+/* Empty */
+.empty{text-align:center;padding:32px 0;color:#444;font-size:13px}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#222;border:1px solid #333;color:#ddd;padding:10px 20px;border-radius:8px;font-size:13px;z-index:99;transition:transform 0.25s ease}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* Notion modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:50;justify-content:center;align-items:center}
+.modal-bg.open{display:flex}
+.modal{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:24px;max-width:560px;width:90%;max-height:80vh;overflow:auto}
+.modal h3{font-size:16px;margin-bottom:4px}
+.modal p{font-size:13px;color:#888;margin-bottom:16px}
+.modal pre{background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:14px;font-size:12px;line-height:1.6;color:#ccc;white-space:pre-wrap;word-break:break-word;max-height:340px;overflow:auto;font-family:'SF Mono','Fira Code',monospace}
+.modal-btns{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.modal-btns button{padding:8px 18px;border-radius:8px;border:none;font-size:13px;cursor:pointer;font-family:inherit}
+.modal-btns .copy-btn{background:#7c6df7;color:#fff;font-weight:600}
+.modal-btns .copy-btn:hover{background:#6c5ce7}
+.modal-btns .close-btn{background:#333;color:#ddd}
+.modal-btns .close-btn:hover{background:#444}
+
+.format-tabs{display:flex;gap:4px;margin-bottom:12px}
+.format-tab{padding:5px 12px;border-radius:6px;border:1px solid #333;background:transparent;color:#888;font-size:12px;cursor:pointer;font-family:inherit}
+.format-tab.active{background:#333;color:#ddd;border-color:#444}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Video source -->
+  <div class="source" id="sourceArea">
+    <div class="source-row">
+      <input type="text" id="driveInput" placeholder="Google Drive 공유 링크 붙여넣기" onkeydown="if(event.key==='Enter')loadDrive()">
+      <button onclick="loadDrive()">열기</button>
+    </div>
+    <div class="or-local">또는 <span onclick="document.getElementById('fileInput').click()">로컬 파일 선택</span></div>
+    <input type="file" id="fileInput" accept="video/*" hidden>
+  </div>
+
+  <!-- Video player -->
+  <div class="player" id="player"></div>
+
+  <!-- Add feedback bar -->
+  <div class="add-bar" id="addBar">
+    <div class="add-top">
+      <button class="ts-btn" onclick="capture()" id="tsBtn" title="현재 시점 캡처 (F)">
+        <span class="capture-dot"></span>
+        <span id="tsDisplay">0:00</span>
+      </button>
+      <input class="add-input" id="fbInput" placeholder="피드백 입력 후 Enter" onkeydown="if(event.key==='Enter')submit()">
+    </div>
+    <div class="add-bottom">
+      <input class="add-author" id="authorInput" placeholder="이름" value="">
+      <button class="add-submit" onclick="submit()">추가</button>
+    </div>
+  </div>
+
+  <!-- Feedback list -->
+  <div class="fb-list" id="fbList">
+    <div class="fb-header">
+      <h3>피드백<b id="fbCount">0</b></h3>
+      <div class="fb-actions">
+        <button onclick="clearAll()">초기화</button>
+        <button class="primary" onclick="openNotionModal()">노션에 정리</button>
+      </div>
+    </div>
+    <div id="fbItems"></div>
+  </div>
+</div>
+
+<!-- Notion export modal -->
+<div class="modal-bg" id="notionModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3>노션에 정리하기</h3>
+    <p>아래 내용을 복사해서 노션에 그대로 붙여넣으세요. 표/리스트로 깔끔하게 들어갑니다.</p>
+    <div class="format-tabs">
+      <button class="format-tab active" onclick="setFormat('table',this)">표</button>
+      <button class="format-tab" onclick="setFormat('list',this)">리스트</button>
+      <button class="format-tab" onclick="setFormat('checklist',this)">체크리스트</button>
+    </div>
+    <pre id="notionPreview"></pre>
+    <div class="modal-btns">
+      <button class="close-btn" onclick="closeModal()">닫기</button>
+      <button class="copy-btn" onclick="copyNotion()">복사하기</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let items = [];
+let capturedTime = 0;
+let iframeMode = false;
+let currentFormat = 'table';
+let driveId = null;
+
+function save() {
+  localStorage.setItem('vr_items', JSON.stringify(items));
+  const a = document.getElementById('authorInput').value;
+  if (a) localStorage.setItem('vr_author', a);
+}
+function load() {
+  try {
+    const s = localStorage.getItem('vr_items');
+    if (s) items = JSON.parse(s);
+    const a = localStorage.getItem('vr_author');
+    if (a) document.getElementById('authorInput').value = a;
+  } catch(e) {}
+}
+
+function fmt(sec) {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return m + ':' + s.toString().padStart(2, '0');
+}
+function parsetime(str) {
+  const p = str.split(':').map(Number);
+  return p.length === 3 ? p[0]*3600+p[1]*60+p[2] : p.length === 2 ? p[0]*60+p[1] : p[0]||0;
+}
+
+function extractId(url) {
+  url = url.trim();
+  let m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(url)) return url;
+  return null;
+}
+
+function loadDrive() {
+  const input = document.getElementById('driveInput').value;
+  const id = extractId(input);
+  if (!id) { toast('올바른 Google Drive 링크를 입력해주세요'); return; }
+  driveId = id;
+  localStorage.setItem('vr_drive', id);
+
+  const player = document.getElementById('player');
+  player.innerHTML = '<video id="vid" controls src="https://drive.google.com/uc?export=download&id=' + id + '"></video>';
+  player.style.display = 'block';
+  iframeMode = false;
+
+  const vid = document.getElementById('vid');
+  vid.onerror = () => {
+    iframeMode = true;
+    player.innerHTML = '<iframe src="https://drive.google.com/file/d/' + id + '/preview" allow="autoplay;encrypted-media" allowfullscreen></iframe>' +
+      '<div class="player-info">iframe 모드 - 타임스탬프 직접 입력</div>';
+  };
+  showUI();
+}
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const player = document.getElementById('player');
+  player.innerHTML = '<video id="vid" controls src="' + URL.createObjectURL(f) + '"></video>';
+  player.style.display = 'block';
+  iframeMode = false;
+  driveId = null;
+  showUI();
+});
+
+function showUI() {
+  document.getElementById('sourceArea').style.display = 'none';
+  document.getElementById('addBar').style.display = 'block';
+  document.getElementById('fbList').style.display = 'block';
+  render();
+}
+
+function capture() {
+  if (iframeMode) {
+    const input = prompt('현재 영상 시점 입력 (예: 1:23)');
+    if (input) {
+      capturedTime = parsetime(input);
+      document.getElementById('tsDisplay').textContent = fmt(capturedTime);
+      document.getElementById('fbInput').focus();
+    }
+    return;
+  }
+  const vid = document.getElementById('vid');
+  if (!vid) return;
+  capturedTime = vid.currentTime;
+  vid.pause();
+  document.getElementById('tsDisplay').textContent = fmt(capturedTime);
+  document.getElementById('fbInput').focus();
+}
+
+function submit() {
+  const text = document.getElementById('fbInput').value.trim();
+  const author = document.getElementById('authorInput').value.trim();
+  if (!text) { toast('피드백을 입력해주세요'); return; }
+  if (!author) { document.getElementById('authorInput').focus(); toast('이름을 입력해주세요'); return; }
+
+  items.push({
+    id: Date.now().toString(36),
+    time: capturedTime,
+    text,
+    author,
+    status: 0,
+    created: new Date().toISOString()
+  });
+  items.sort((a, b) => a.time - b.time);
+  save();
+  document.getElementById('fbInput').value = '';
+  render();
+  toast(fmt(capturedTime) + ' 피드백 추가됨');
+}
+
+const STATUS = ['미확인', '확인', '반영완료'];
+const STATUS_CLS = ['s0', 's1', 's2'];
+
+function render() {
+  document.getElementById('fbCount').textContent = items.length;
+  const c = document.getElementById('fbItems');
+  if (!items.length) {
+    c.innerHTML = '<div class="empty">영상을 재생하고 원하는 시점에서 피드백을 남겨보세요</div>';
+    return;
+  }
+  c.innerHTML = items.map(f =>
+    '<div class="fb-item">' +
+      '<button class="fb-ts" onclick="seek(' + f.time + ')">' + fmt(f.time) + '</button>' +
+      '<div class="fb-body">' +
+        '<div class="fb-text">' + esc(f.text) + '</div>' +
+        '<div class="fb-meta">' +
+          '<span class="fb-author">' + esc(f.author) + '</span>' +
+          '<button class="fb-status ' + STATUS_CLS[f.status] + '" onclick="cycleStatus(\'' + f.id + '\')">' + STATUS[f.status] + '</button>' +
+        '</div>' +
+      '</div>' +
+      '<button class="fb-del" onclick="del(\'' + f.id + '\')" title="삭제">&times;</button>' +
+    '</div>'
+  ).join('');
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function seek(t) {
+  if (iframeMode) { toast(fmt(t) + ' 시점으로 이동해주세요'); return; }
+  const vid = document.getElementById('vid');
+  if (vid) {
+    vid.currentTime = t;
+    vid.play();
+    vid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+function cycleStatus(id) {
+  const f = items.find(x => x.id === id);
+  if (f) { f.status = (f.status + 1) % 3; save(); render(); }
+}
+
+function del(id) {
+  items = items.filter(x => x.id !== id);
+  save(); render();
+}
+
+function clearAll() {
+  if (!confirm('모든 피드백을 삭제할까요?')) return;
+  items = []; save(); render();
+}
+
+function openNotionModal() {
+  if (!items.length) { toast('내보낼 피드백이 없습니다'); return; }
+  document.getElementById('notionModal').classList.add('open');
+  renderNotionPreview();
+}
+
+function closeModal() {
+  document.getElementById('notionModal').classList.remove('open');
+}
+
+function setFormat(f, btn) {
+  currentFormat = f;
+  document.querySelectorAll('.format-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderNotionPreview();
+}
+
+function renderNotionPreview() {
+  const el = document.getElementById('notionPreview');
+  const driveUrl = driveId ? 'https://drive.google.com/file/d/' + driveId + '/view' : '';
+  const header = driveUrl ? '영상: ' + driveUrl + '\n\n' : '';
+
+  if (currentFormat === 'table') {
+    const rows = items.map(f =>
+      '| ' + fmt(f.time) + ' | ' + f.text + ' | ' + f.author + ' | ' + STATUS[f.status] + ' |'
+    );
+    el.textContent = header +
+      '| 시점 | 피드백 | 작성자 | 상태 |\n| --- | --- | --- | --- |\n' +
+      rows.join('\n');
+  } else if (currentFormat === 'list') {
+    const rows = items.map(f =>
+      '- **' + fmt(f.time) + '** ' + f.text + ' (' + f.author + ') [' + STATUS[f.status] + ']'
+    );
+    el.textContent = header + rows.join('\n');
+  } else {
+    const rows = items.map(f =>
+      '- [ ] **' + fmt(f.time) + '** ' + f.text + ' — ' + f.author
+    );
+    el.textContent = header + rows.join('\n');
+  }
+}
+
+function copyNotion() {
+  const text = document.getElementById('notionPreview').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    toast('복사 완료! 노션에 붙여넣기 하세요');
+    closeModal();
+  });
+}
+
+document.addEventListener('keydown', e => {
+  if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+  const vid = document.getElementById('vid');
+  if (e.key === ' ' && vid && !iframeMode) { e.preventDefault(); vid.paused ? vid.play() : vid.pause(); }
+  if (e.key === 'f' || e.key === 'F') { e.preventDefault(); capture(); }
+  if (e.key === 'ArrowLeft' && vid && !iframeMode) vid.currentTime = Math.max(0, vid.currentTime - 5);
+  if (e.key === 'ArrowRight' && vid && !iframeMode) vid.currentTime += 5;
+});
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+const params = new URLSearchParams(location.search);
+if (params.get('drive')) {
+  document.getElementById('driveInput').value = params.get('drive');
+  loadDrive();
+} else {
+  const savedDrive = localStorage.getItem('vr_drive');
+  if (savedDrive) {
+    document.getElementById('driveInput').value = 'https://drive.google.com/file/d/' + savedDrive + '/view';
+    loadDrive();
+  }
+}
+
+// 피드백 입력 클릭 시 영상 자동 일시정지
+document.getElementById('fbInput').addEventListener('focus', () => {
+  const vid = document.getElementById('vid');
+  if (vid && !vid.paused && !iframeMode) {
+    capturedTime = vid.currentTime;
+    vid.pause();
+    document.getElementById('tsDisplay').textContent = fmt(capturedTime);
+  }
+});
+
+load();
+render();
+</script>
+</body>
+</html>
